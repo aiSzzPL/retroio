@@ -75,6 +75,12 @@ func (d DSK) DisplayGeometry() {
 	}
 }
 
+// DirectoryListing prints the directory contents from the disk to the terminal.
+func (d DSK) DirectoryListing() {
+	fmt.Println("DIRECTORY LISTING:")
+	fmt.Println("...todo...")
+}
+
 func reformatIdentifier(identifier []byte) string {
 	var idBytes []byte
 	for _, b := range identifier {
