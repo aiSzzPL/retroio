@@ -93,13 +93,13 @@ type DiscParameterBlock struct {
 	SectorsPerTrack   uint16 // spt ; Number of 128-byte records per track
 	BlockShift        uint8  // bsh ; Block shift. 3 => 1k, 4 => 2k, 5 => 4k....
 	BlockMask         uint8  // blm ; Block mask. 7 => 1k, 0Fh => 2k, 1Fh => 4k...
-	ExtentMask        uint8  // exm ; Extent mask, see later
+	ExtentMask        uint8  // exm ; Extent mask
 	BlockCount        uint16 // dsm ; (no. of blocks on the disc)-1
 	DirectoryCount    uint16 // drm ; (no. of directory entries)-1
 	AllocationBitmap0 uint8  // al0 ; Not used for DOS media
 	AllocationBitmap1 uint8  // al1 ; Not used for DOS media
 	Checksum          uint16 // cks ; Checksum vector size, 0 or 8000h for a fixed disc, else number root directory entries/4, rounded up.
-	Offset            uint16 // off ;Offset, number of reserved tracks
+	Offset            uint16 // off ; Offset, number of reserved tracks
 
 	// 0 => 128-byte sectors
 	// 1 => 256-byte sectors

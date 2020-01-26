@@ -168,7 +168,7 @@ type DiskParameterBlock struct {
 	// PHM specifies the physical record mask, ranging from 0 to 31,
 	// corresponding to physical record sizes of 128, 256, 512, 1K, 2K, or 4K
 	// bytes. It is equal to one less than the sector size divided by 128, or,
-	// (sector-size/128)-l. See Table 3-7 for PHM values.
+	// (sector-size/128)-1. See Table 3-7 for PHM values.
 	//
 	// Sector size | PSH | PHM
 	//     128     |  0  |  0
@@ -179,6 +179,24 @@ type DiskParameterBlock struct {
 	//    4096     |  5  | 31
 	PhysicalShift uint8 // PSH ; Physical sector shift
 	PhysicalMask  uint8 // PHM ; Physical sector mask
+}
+
+// Map for SectorSize to PSH / PHM values
+//
+// PSH specifies the physical record shift factor: LOG2(sector-size/128).
+// PHM specifies the physical record mask:         (sector-size/128)-1.
+type physicalRecords map[uint16]struct {
+	PSH uint8
+	PHM uint8
+}
+
+var PhysicalShiftMaskTable = physicalRecords{
+	128:  {PSH: 0, PHM: 0},
+	256:  {PSH: 1, PHM: 1},
+	512:  {PSH: 2, PHM: 3},
+	1024: {PSH: 3, PHM: 7},
+	2048: {PSH: 4, PHM: 15},
+	4096: {PSH: 5, PHM: 31},
 }
 
 // Buffer Control Block

@@ -7,6 +7,10 @@ import (
 	"retroio/storage"
 )
 
+const (
+	RecordSize = 128 // CP/M records are 128 bytes in length
+)
+
 type Disc struct {
 	reader *storage.Reader
 
@@ -44,6 +48,7 @@ type Track struct {
 	Number  uint8
 	Sectors []Sector
 }
+
 type Sector struct {
 	Number     uint8
 	Size       uint16 // Needed?

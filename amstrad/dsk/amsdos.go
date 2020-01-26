@@ -1,9 +1,199 @@
-// Amstrad CP/M Disc Format
+// Amstrad CP/M Disc
 //
 // Reference: http://www.seasip.info/Cpm/amsform.html
-package amsdos
+package dsk
 
-import "retroio/cpm/cpm3"
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
+
+	"retroio/cpm"
+	"retroio/cpm/cpm1"
+	"retroio/cpm/cpm2"
+	"retroio/cpm/cpm3"
+)
+
+const (
+	// BLS for the Amstrad CPC disk format.
+	amstradBLS uint16 = 1024
+
+	// 40 tracks, 9 sectors per track, 512-byte sectors, 1024-byte block size.
+	amstradDSM = uint16((40 * 9 * 512) / int(amstradBLS))
+
+	// All Amstrad formats have 64 directory entries available,
+	// for a total of 64 * 32-bytes = 2048 bytes.
+	amstradDRM uint16 = 64
+)
+
+type AmsDos struct {
+	Disk *DSK
+
+	DPB         DiscParameterBlock
+	Directories []Directory
+}
+
+func (a *AmsDos) NewAmsDos(disk *DSK) {
+	a.Disk = disk
+	a.readDirectories(disk.Tracks[0])
+
+	a.DPB = a.newDPB()
+}
+
+// CP/M v3.1 DiskParameterBlock, using defaults from the Amstrad CPC disk format.
+func (a AmsDos) dpbV3() cpm3.DiskParameterBlock {
+	dpb := cpm1.DiskParameterBlock{
+		ExtentMask:           0, // Is zero with Amstrad CPC defaults
+		BlockCount:           amstradDSM - 1,
+		DirectoryCount:       amstradDRM - 1,
+		Checksum:             0, // CKS = 0 (Fixed Media)
+		ReservedTracksOffset: 0, // TODO:michael
+	}
+
+	dpb.RecordsPerTrack = (a.Disk.Info.TrackSize - sectorDataStartAddress) / cpm.RecordSize
+
+	// BLS, BSH, BLM for the Amstrad CPC standard
+	blsTable := cpm1.BlsTable[amstradBLS]
+	dpb.BlockShift = blsTable.BSH
+	dpb.BlockMask = blsTable.BLM
+
+	dirsPerBlock := cpm1.BlsTable[amstradBLS].Dirs
+	reservedBlocks := len(a.Directories)/int(dirsPerBlock) + 1
+	dpb.SetAllocationBitmap(reservedBlocks)
+
+	dpb3 := cpm3.DiskParameterBlock{DiskParameterBlock: dpb}
+
+	if physicalRecord, ok := cpm3.PhysicalShiftMaskTable[a.sectorSize()]; ok {
+		dpb3.PhysicalShift = physicalRecord.PSH
+		dpb3.PhysicalMask = physicalRecord.PHM
+	}
+
+	return dpb3
+}
+
+// Extended DiskParameterBlock for Amstrad CPC disks
+func (a *AmsDos) newDPB() DiscParameterBlock {
+	firstSectorNumber := a.firstSectorNumber()
+	sectorSize := a.sectorSize()
+
+	return DiscParameterBlock{
+		DiskParameterBlock:  a.dpbV3(),
+		MediaType:           a.Disk.Info.mediaType(),
+		TrackCountPerSide:   40, // Amstrad standard SSSD
+		SectorCountPerTrack: 9,  // but not for IBM formatted disk
+		FirstSectorNumber:   firstSectorNumber,
+		SectorSize:          sectorSize,
+		ReadWriteGap:        0x2A, // Amstrad CPC standard
+		FormatGap:           0x52, // Amstrad CPC standard
+		MultiTrackFlags:     0,    // Non multi-track disk
+		FreezeFlag:          1,    // Non-zero value: use current format
+	}
+}
+
+func (a *AmsDos) readDirectories(track TrackInformation) {
+	sectorSize, ok := sectorSizeMap[track.SectorSize]
+	if !ok {
+		panic(fmt.Sprintf("unkown sector size: 0x%02X\n", track.SectorSize))
+	}
+
+	// 64 files * 32-bytes each = 2048 bytes
+	maxDirSectors := (amstradDRM * 32) / sectorSize
+
+	// merge the sector data into one slice
+	var data []byte
+	for _, s := range track.SectorData[0 : maxDirSectors-1] {
+		for _, b := range s {
+			data = append(data, b)
+		}
+	}
+
+	// Unmarshal the directory entries
+	reader := bytes.NewReader(data)
+	for {
+		dir := Directory{}
+		err := binary.Read(reader, binary.LittleEndian, &dir)
+		if err != nil && err == io.EOF {
+			break
+		} else if err != nil {
+			panic("sector read error: " + err.Error())
+		}
+		if dir.UserNumber <= 32 {
+			a.Directories = append(a.Directories, dir)
+		}
+	}
+}
+
+// IsHeader calculates a checksum against the first 67-bytes of the file, and
+// returns true if it's a valid header.
+func (a AmsDos) isHeader(expectedChecksum uint8, bytes []byte) bool {
+	// TODO: validate checksum
+	return true
+}
+
+// Calculates the DSM (Storage Capacity) of the disk
+// Number of blocks on the disc - 1.
+func (a AmsDos) totalBlocksPerDisk() uint16 {
+	total := a.totalSectorSizeInBytes() / int(amstradBLS)
+
+	total -= 1
+
+	// DSM must be less than or equal to 7FFFH.
+	if total > 0x7FFF {
+		return 0
+	}
+
+	return uint16(total)
+}
+
+func (a AmsDos) totalSectors() uint16 {
+	count := 0
+
+	for _, t := range a.Disk.Tracks {
+		count += int(t.SectorsCount)
+	}
+
+	return uint16(count)
+}
+
+func (a AmsDos) totalSectorSizeInBytes() int {
+	size := 0
+
+	for _, t := range a.Disk.Tracks {
+		size += int(sectorSizeMap[t.SectorSize])
+	}
+
+	return size
+}
+
+func (a AmsDos) sectorSize() uint16 {
+	if len(a.Disk.Tracks) == 0 {
+		return 0
+	}
+
+	track := a.Disk.Tracks[0]
+
+	size, ok := sectorSizeMap[track.SectorSize]
+	if !ok {
+		return 0
+	}
+
+	return size
+}
+
+func (a AmsDos) firstSectorNumber() uint8 {
+	if len(a.Disk.Tracks) == 0 {
+		return 0
+	}
+
+	track := a.Disk.Tracks[0]
+
+	if len(track.Sectors) == 0 {
+		return 0
+	}
+
+	return track.Sectors[0].ID
+}
 
 // Amstrad CP/M (and +3DOS) has an eXtended Disc Parameter Block (XDPB):
 //
@@ -83,6 +273,14 @@ type DiscParameterBlock struct {
 	// Set to non-zero value to force this format to be used - otherwise,
 	// attempt to determine format when a disc is logged in.
 	FreezeFlag uint8
+}
+
+// Disk Directory
+//
+// The directory is a sequence of directory entries (also called extents),
+// which contain 32 bytes of the following structure:
+type Directory struct {
+	cpm2.Directory // TODO: or should this be cpm3?
 }
 
 // AMDSDOS File Record Header

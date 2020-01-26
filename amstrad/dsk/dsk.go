@@ -31,6 +31,8 @@ type DSK struct {
 
 	Info   DiskInformation
 	Tracks []TrackInformation
+
+	AmsDos AmsDos
 }
 
 func New(reader *storage.Reader) *DSK {
@@ -51,6 +53,9 @@ func (d *DSK) Read() error {
 		d.Tracks = append(d.Tracks, track)
 	}
 
+	d.AmsDos = AmsDos{}
+	d.AmsDos.NewAmsDos(d)
+
 	return nil
 }
 
@@ -60,14 +65,14 @@ func (d DSK) DisplayGeometry() {
 	fmt.Println(d.Info)
 
 	for _, track := range d.Tracks {
+		sectorSize, _ := sectorSizeMap[track.SectorSize]
+
 		str := fmt.Sprintf("SIDE %d, TRACK %02d: ", track.Side, track.Track)
 		if track.SectorsCount == 0 {
 			str += "[Track is blank]"
 		}
 		str += fmt.Sprintf("%02d sectors", track.SectorsCount)
-		if len(track.Sectors) > 0 {
-			str += fmt.Sprintf(" (%d bytes)", track.Sectors[0].SectorByteSize())
-		}
+		str += fmt.Sprintf(" (%d bytes)", sectorSize)
 		if int(track.SectorsCount) != len(track.Sectors) {
 			str += fmt.Sprintf(" WARNING only %d sectors read", len(track.Sectors))
 		}
@@ -77,8 +82,28 @@ func (d DSK) DisplayGeometry() {
 
 // DirectoryListing prints the directory contents from the disk to the terminal.
 func (d DSK) DirectoryListing() {
-	fmt.Println("DIRECTORY LISTING:")
-	fmt.Println("...todo...")
+	var userNumber uint8 = 0
+	if len(d.AmsDos.Directories) > 0 {
+		userNumber = d.AmsDos.Directories[0].UserNumber
+	}
+
+	fmt.Printf("Drive A: user %d\n", userNumber)
+	fmt.Println()
+
+	usedKilobytes := 0
+	for _, d := range d.AmsDos.Directories {
+		blockCount := 0
+		for _, b := range d.Allocation {
+			if b > 0 {
+				blockCount += 1
+			}
+		}
+		usedKilobytes += blockCount
+		fmt.Printf("%s.%s %3dK\n", d.Filename, d.FileType, blockCount)
+	}
+	fmt.Println()
+
+	fmt.Printf("%3dK free\n", int(d.AmsDos.DPB.BlockCount)-usedKilobytes)
 }
 
 func reformatIdentifier(identifier []byte) string {

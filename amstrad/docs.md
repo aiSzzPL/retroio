@@ -46,6 +46,33 @@ For a standard disk image to represent a copy-protected disk:
     contained different sized sectors, the size of the largest sector should
     be used. This would result in some wasted space.
 
+
+### Disc media type (sidedness)
+
+     Bit |  Description
+    -----|------------------------------------------------
+     0-1 | 0 => Single sided
+         | 1 => Double sided, flip sides
+         |    ie track   0 is cylinder   0 head 0
+         |       track   1 is cylinder   0 head 1
+         |       track   2 is cylinder   1 head 0
+         |       ...
+         |       track n-1 is cylinder n/2 head 0
+         |       track   n is cylinder n/2 head 1
+         | 2 => Double sided, up and over
+         |    ie track   0 is cylinder 0 head 0
+         |       track   1 is cylinder 1 head 0
+         |       track   2 is cylinder 2 head 0
+         |       ...
+         |       track n-2 is cylinder 2 head 1
+         |       track n-1 is cylinder 1 head 1
+         |       track   n is cylinder 0 head 1
+      6  | Set if the format is for a high-density disc
+         |   This is an extension in PCW16 CP/M, BIOS 0.09+.
+         |   It is not an official part of the spec.
+      7  | Set if the format is double track.
+
+
 ### General DSK Format Geometry
 
 **Single sided DSK images:**
@@ -106,6 +133,7 @@ formats on the two sides.
 ### SYSTEM Format
 
 * 9 sectors per track numbered #41 to #49.
+* 2 reserved tracks.
 * 2 reserved tracks.
 * 2 to 1 sector interleave.
 

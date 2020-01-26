@@ -63,17 +63,7 @@ type DiskParameterBlock struct {
 	// SPT - Total number of 128-byte logical records per track.
 	RecordsPerTrack uint16 // usually 8, 16, or 32
 
-	// BSH / BLM
-	//
-	// The values of BSH and BLM determine (implicitly) the data allocation
-	// size BLS, which is not an entry in this DPB.
-	//
-	//  BLS  | BSH | BLM
-	//  1024 |  3  |   7
-	//  2048 |  4  |  15 (0x0F)
-	//  4096 |  5  |  31 (0x1F)
-	//  8192 |  6  |  63 (0x3F)
-	// 16384 |  7  | 127 (0x7F)
+	// BLS is (implicitly) determined by the values of BSH and BLM.
 	//
 	// BSH - Block shift factor
 	// The data allocation block shift factor, determine by the data block
@@ -88,7 +78,7 @@ type DiskParameterBlock struct {
 	// the number of disk blocks.
 	//
 	// The value of EXM depends upon both the BLS and whether the DSM value
-	// is less than 256 or grater tan 255, as shown in the following table:
+	// is less than 256 or grater than 255, as shown in the following table:
 	//
 	//    Maximum EXM values
 	//  BLS  | DSM<256 | DSM>255
@@ -134,7 +124,7 @@ type DiskParameterBlock struct {
 	//
 	// Position 0x00 corresponds to the high order bit of the byte labeled AL0,
 	// and 15 (0xF) corresponds to the low order but of the byte labeled AL1.
-	// Each bit positions reserves a data block for a number of directory
+	// Each bit position reserves a data block for a number of directory
 	// entries, thus allowing a total of 16 data blocks to be assigned for
 	// directory entries, (bits are assigned starting at 0x00 and filled to the
 	// right until position 0x0F). Each directory entry occupies 32 bytes, as
@@ -171,6 +161,36 @@ type DiskParameterBlock struct {
 	// operating system tracks, or for partitioning a large disk into smalled
 	// segmented sections.
 	ReservedTracksOffset uint16
+}
+
+func (d *DiskParameterBlock) SetAllocationBitmap(reservedBlocks int) {
+	var allocation uint16
+
+	// turn on the bits from left to right, per directory
+	for i := 0; i < reservedBlocks; i++ {
+		allocation |= 1 << (15 - i)
+	}
+
+	d.AllocationBitmap0 = uint8((allocation & 0xFF00) >> 8)
+	d.AllocationBitmap1 = uint8(allocation & 0x00FF)
+}
+
+// BLS Table
+//
+// The values of BSH and BLM determine (implicitly) the data allocation
+// size BLS, which is not an entry in the DPB.
+type blsRcord map[uint16]struct {
+	Dirs uint16 // Reserved directory blocks
+	BSH  uint8  // Block shift factor
+	BLM  uint8  // Block mask
+}
+
+var BlsTable = blsRcord{
+	1024:  {Dirs: 32, BSH: 3, BLM: 7},
+	2048:  {Dirs: 64, BSH: 4, BLM: 15},   // 0x0F
+	4096:  {Dirs: 128, BSH: 5, BLM: 31},  // 0x1F
+	8192:  {Dirs: 256, BSH: 6, BLM: 63},  // 0x3F
+	16384: {Dirs: 512, BSH: 7, BLM: 127}, // 0x7F
 }
 
 // Disk Directory
