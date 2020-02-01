@@ -53,8 +53,11 @@ func (d *DSK) Read() error {
 		d.Tracks = append(d.Tracks, track)
 	}
 
+	// Read the contents of the disk as AMSDOS format
 	d.AmsDos = AmsDos{}
-	d.AmsDos.NewAmsDos(d)
+	if err := d.AmsDos.Read(d); err != nil {
+		return errors.Wrap(err, "AMSDOS read error")
+	}
 
 	return nil
 }
@@ -82,6 +85,7 @@ func (d DSK) DisplayGeometry() {
 
 // DirectoryListing prints the directory contents from the disk to the terminal.
 func (d DSK) DirectoryListing() {
+
 	var userNumber uint8 = 0
 	if len(d.AmsDos.Directories) > 0 {
 		userNumber = d.AmsDos.Directories[0].UserNumber

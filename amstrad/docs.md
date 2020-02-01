@@ -212,6 +212,54 @@ disk formats (all numbers are in Hex):
      Freeze Flag  |    00  |    00  |    00  |    00  |    FF
 
 
+
+### Disc Parameter Block
+
+Amstrad CP/M (and +3DOS) has an eXtended Disc Parameter Block (XDPB).
+The DPB is not stored on disc.
+
+This simple system is used by CPC computers if the first physical sector is:
+
+- 41h: A System formatted disc:
+         single sided, single track, 40 tracks, 9 sectors/track, 512-byte sectors,
+         2 reserved tracks, 1k blocks,
+         2 directory blocks,
+         gap lengths 2Ah and 52h,
+         bootable
+- C1h: A Data formatted disc:
+         single sided, single track, 40 tracks, 9 sectors/track, 512-byte sectors,
+         no reserved tracks, 1k blocks,
+         2 directory blocks,
+         gap lengths 2Ah and 52h,
+         not bootable
+
+
+In addition to the XDPB system, the PCW and Spectrum +3 can determine the format
+of a disc from a 16-byte record on track 0, head 0, physical sector 1.
+
+If all bytes of the spec are 0E5h, it should be assumed that the disc is a
+173k PCW/Spectrum +3 disc, ie:
+
+  single sided, single track, 40 tracks, 9 sectors/track, 512-byte sectors,
+  1 reserved track, 1k blocks,
+  2 directory blocks,
+  gap lengths 2Ah and 52h,
+  not bootable
+
+PCW16 extended boot record
+
+The "boot record" system has been extended in PCW16 CP/M (BIOS 0.09 and later).
+The extension is intended to allow a CP/M "partition" on a DOS-formatted floppy disc.
+
+An extended boot sector (cylinder 0, head 0, sector 1) has the following characteristics:
+
+- First byte is 0E9h or 0EBh
+- Where DOS expects the disc label to be (at sector + 2Bh) there are 11 ASCII bytes
+  of the form `CP/M????DSK`, where "?" can be any character.
+- At sector + 7Ch are the four ASCII bytes "CP/M"
+- At sector + 80h is the disc specification as described above.
+
+
 ### Boot Sector
 
 In order that non-CP/M systems may be implemented at a later date the BIOS
