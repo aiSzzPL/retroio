@@ -46,7 +46,7 @@ or T64 tape file.`,
 		}
 
 		if err := dsk.Read(); err != nil {
-			fmt.Println("Storage read error!")
+			fmt.Println("Media read error!")
 			fmt.Println(err)
 			os.Exit(1)
 		}

@@ -48,7 +48,7 @@ NOTE: the CDT geometry is identical to that of the ZX Spectrum TZX format.`,
 		}
 
 		if err := disk.Read(); err != nil {
-			fmt.Println("Storage read error!")
+			fmt.Println("Media read error!")
 			fmt.Println(err)
 			os.Exit(1)
 		}

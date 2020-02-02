@@ -11,10 +11,11 @@ import (
 	"retroio/storage"
 )
 
-var amstradCommandCat = &cobra.Command{
-	Use:                   "cat FILE",
-	Short:                 "Displays the disk directory (catalog)",
-	Long:                  `Reads and displays the directory contents from an Amstrad emulator DSK file.`,
+var amstradCommandDir = &cobra.Command{
+	Use:                   "dir FILE",
+	Aliases:               []string{"cat"},
+	Short:                 "Displays the disk directory",
+	Long:                  `Reads and displays the directory listing on an Amstrad emulator DSK file.`,
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -40,7 +41,7 @@ var amstradCommandCat = &cobra.Command{
 		}
 
 		if err := disk.Read(); err != nil {
-			fmt.Println("Storage read error!")
+			fmt.Println("Media read error!")
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -50,6 +51,6 @@ var amstradCommandCat = &cobra.Command{
 }
 
 func init() {
-	amstradCommandCat.Flags().StringVarP(&amstradMediaType, "media", "m", "", `Media type, default: file extension`)
-	amstradCmd.AddCommand(amstradCommandCat)
+	amstradCommandDir.Flags().StringVarP(&amstradMediaType, "media", "m", "", `Media type, default: file extension`)
+	amstradCmd.AddCommand(amstradCommandDir)
 }
