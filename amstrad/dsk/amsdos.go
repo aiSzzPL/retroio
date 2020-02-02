@@ -45,15 +45,15 @@ func (a *AmsDos) readDirectories(sectorSize uint16, track *TrackInformation) {
 	maxDirSectors := (amsdos.DRM * 32) / sectorSize
 
 	// merge the sector data into one slice
-	var data []byte
+	var dirBytes []byte
 	for _, s := range track.SectorData[0 : maxDirSectors-1] {
 		for _, b := range s {
-			data = append(data, b)
+			dirBytes = append(dirBytes, b)
 		}
 	}
 
 	// Unmarshal the directory entries
-	reader := bytes.NewReader(data)
+	reader := bytes.NewReader(dirBytes)
 	for {
 		dir := amsdos.Directory{}
 		err := binary.Read(reader, binary.LittleEndian, &dir)
@@ -62,9 +62,7 @@ func (a *AmsDos) readDirectories(sectorSize uint16, track *TrackInformation) {
 		} else if err != nil {
 			panic("sector read error: " + err.Error())
 		}
-		if dir.UserNumber <= 32 {
-			a.Directories = append(a.Directories, dir)
-		}
+		a.Directories = append(a.Directories, dir)
 	}
 }
 
@@ -106,11 +104,4 @@ func (a *AmsDos) generateDPB(trackSize, sectorSize uint16, firstSectorID, mediaT
 	}
 
 	a.DPB = dpb
-}
-
-// IsHeader calculates a checksum against the first 67-bytes of the file, and
-// returns true if it's a valid header.
-func (a AmsDos) isHeader(expectedChecksum uint8, bytes []byte) bool {
-	// TODO: validate checksum
-	return true
 }

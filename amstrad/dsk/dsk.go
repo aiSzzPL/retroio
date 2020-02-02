@@ -98,19 +98,25 @@ func (d DSK) CommandDir() {
 	// Print listing in two columns
 	maxRowsLeft, maxRowsRight := recordRowCounts(len(commandCat.Records))
 	for i := 0; i < maxRowsLeft; i++ {
-		left := commandCat.Records[i]
-		row := fmt.Sprintf("%s.%s %3dK", left.Filename, left.FileType, left.RecordCount)
-
+		row := commandCat.Records[i].String()
 		if i < maxRowsRight {
-			right := commandCat.Records[maxRowsLeft+i]
-			row += fmt.Sprintf("   %s.%s %3dK", right.Filename, right.FileType, right.RecordCount)
+			row += fmt.Sprintf("   %s", commandCat.Records[maxRowsLeft+i].String())
 		}
-
-		fmt.Printf("%s\n", row)
+		fmt.Println(row)
 	}
 
 	fmt.Println()
 	fmt.Printf("%3dK free\n", commandCat.FreeSpace)
+
+	if commandCat.HiddenFiles > 0 {
+		fmt.Println()
+		pluralized := ""
+		if commandCat.HiddenFiles > 1 {
+			pluralized = "s"
+
+		}
+		fmt.Printf("* %d hidden file%s\n", commandCat.HiddenFiles, pluralized)
+	}
 }
 
 func recordRowCounts(records int) (int, int) {
