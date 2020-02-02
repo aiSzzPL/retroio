@@ -21,6 +21,6 @@ func New(reader *storage.Reader) *CDT {
 	return &CDT{tzx.New(reader)}
 }
 
-func (d CDT) DirectoryListing() {
+func (d CDT) CommandDir() {
 	fmt.Println("directory listing unsupported for tapes")
 }

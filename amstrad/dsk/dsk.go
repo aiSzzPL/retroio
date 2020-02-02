@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"retroio/amstrad/dsk/amsdos/cat"
 	"retroio/storage"
 )
 
@@ -83,31 +84,43 @@ func (d DSK) DisplayGeometry() {
 	}
 }
 
-// DirectoryListing prints the directory contents from the disk to the terminal.
-func (d DSK) DirectoryListing() {
-
-	var userNumber uint8 = 0
-	if len(d.AmsDos.Directories) > 0 {
-		userNumber = d.AmsDos.Directories[0].UserNumber
+// CommandDir displays the disk directory to the terminal.
+func (d DSK) CommandDir() {
+	commandCat, err := cat.CommandCat(d.AmsDos.DPB.BlockCount, d.AmsDos.Directories)
+	if err != nil {
+		fmt.Printf("CAT command error: %s", err)
+		return
 	}
 
-	fmt.Printf("Drive A: user %d\n", userNumber)
+	fmt.Printf("Drive %c: user %d\n", commandCat.Drive, commandCat.User)
 	fmt.Println()
 
-	usedKilobytes := 0
-	for _, d := range d.AmsDos.Directories {
-		blockCount := 0
-		for _, b := range d.Allocation {
-			if b > 0 {
-				blockCount += 1
-			}
+	// Print listing in two columns
+	maxRowsLeft, maxRowsRight := recordRowCounts(len(commandCat.Records))
+	for i := 0; i < maxRowsLeft; i++ {
+		left := commandCat.Records[i]
+		row := fmt.Sprintf("%s.%s %3dK", left.Filename, left.FileType, left.RecordCount)
+
+		if i < maxRowsRight {
+			right := commandCat.Records[maxRowsLeft+i]
+			row += fmt.Sprintf("   %s.%s %3dK", right.Filename, right.FileType, right.RecordCount)
 		}
-		usedKilobytes += blockCount
-		fmt.Printf("%s.%s %3dK\n", d.Filename, d.FileType, blockCount)
-	}
-	fmt.Println()
 
-	fmt.Printf("%3dK free\n", int(d.AmsDos.DPB.BlockCount)-usedKilobytes)
+		fmt.Printf("%s\n", row)
+	}
+
+	fmt.Println()
+	fmt.Printf("%3dK free\n", commandCat.FreeSpace)
+}
+
+func recordRowCounts(records int) (int, int) {
+	left := records / 2
+	if records%2 > 0 {
+		left += 1
+	}
+	right := records / 2
+
+	return left, right
 }
 
 func reformatIdentifier(identifier []byte) string {

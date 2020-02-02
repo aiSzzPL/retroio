@@ -2,7 +2,7 @@
 //
 // Amstrad computers use formats based on the standard CP/M 2 or CP/M 3
 // specification, but with extensions.
-package dsk
+package amsdos
 
 const CpmRecordSize = 128 // CP/M records are 128 bytes in length
 
@@ -48,7 +48,7 @@ type DiskParameterBlock struct {
 	// with disk sizes greater than 256K bytes.
 	ExtentMask uint8
 
-	// DSM - Storage Capacity
+	// DSM - Storage Capacity (in blocks)
 	// Determines the total storage capacity of the disk drive.
 	// Number of blocks on the disc - 1.
 	//
